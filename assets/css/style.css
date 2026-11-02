@@ -34,6 +34,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------- language switching ---------- */
+[hidden] { display: none !important; }
+.lang-es .lang-block.lang-en, .lang-es .l-en { display: none !important; }
+.lang-en .lang-block.lang-es, .lang-en .l-es { display: none !important; }
+
 /* ---------- progress bar ---------- */
 #progress-bar {
   position: fixed; top: 0; left: 0; height: 3px; width: 0;
@@ -53,13 +58,7 @@ body {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
 }
 .site-nav > ul { list-style: none; display: flex; gap: .2rem; margin: 0; padding: 0; flex-wrap: wrap; }
-.dropdown-menu {
-  position: absolute; top: 100%; left: 0; min-width: 17rem;
-  background: var(--charcoal); border: 1px solid #3d3227; border-radius: .5rem;
-  padding: .4rem; margin: .3rem 0 0; display: none; flex-direction: column; z-index: 60;
-  box-shadow: var(--shadow); list-style: none;
-}
-.dropdown.open .dropdown-menu { display: flex; }
+.site-nav a, .dropbtn {
   display: inline-block; padding: .42rem .75rem; border-radius: .4rem;
   color: var(--sand); text-decoration: none; font-size: .86rem; font-weight: 500;
   background: none; border: none; cursor: pointer; font-family: var(--sans);
@@ -80,12 +79,6 @@ body {
 }
 .dropdown.open .dropdown-menu { display: flex; }
 .dropdown-menu a { display: block; font-size: .84rem; }
-.site-nav a, .dropbtn {
-  display: inline-block; padding: .42rem .75rem; border-radius: .4rem;
-  color: var(--sand); text-decoration: none; font-size: .86rem; font-weight: 500;
-  background: none; border: none; cursor: pointer; font-family: var(--sans);
-  transition: background .18s, color .18s;
-}
 .lang-toggle { display: flex; gap: .25rem; }
 .lang-toggle button {
   padding: .32rem .7rem; font-size: .78rem; font-weight: 600; cursor: pointer;
@@ -270,7 +263,6 @@ body {
 .fn-note { font-size: .88rem; color: #5a4a38; border-left: 3px solid var(--sand); padding-left: .9rem; margin-left: .3rem; }
 li.fn-note { margin: .45rem 0; }
 .fn-note:target { background: #FBF3DF; border-left-color: var(--clay); padding: .4rem .4rem .4rem .9rem; }
-.prose ol.fn-notes-list, .prose .fn-note { font-size: .88rem; }
 
 /* tables */
 .table-wrap { overflow-x: auto; margin: 1.4rem 0 1.8rem; border-radius: .6rem; box-shadow: var(--shadow); }
@@ -310,12 +302,12 @@ li.fn-note { margin: .45rem 0; }
 }
 .plate-label { font-weight: 600; color: var(--clay-deep); text-transform: uppercase; font-size: .68rem; letter-spacing: .08em; }
 
-/* ---------- lightbox ---------- */
+/* ---------- lightbox (class-controlled; hidden by default) ---------- */
 #lightbox {
   position: fixed; inset: 0; z-index: 200; background: rgba(31,25,19,.92);
-  display: flex; align-items: center; justify-content: center; padding: 2rem;
+  display: none; align-items: center; justify-content: center; padding: 2rem;
 }
-#lightbox[hidden] { display: none !important; }
+#lightbox.open { display: flex; }
 #lightbox figure { margin: 0; max-width: min(92vw, 60rem); text-align: center; }
 #lightbox img {
   max-width: 100%; max-height: 80vh; border-radius: .4rem; background: #fff;
@@ -341,13 +333,6 @@ li.fn-note { margin: .45rem 0; }
 }
 .footer-small { font-size: .78rem; color: #9a8a72; }
 
-/* ---------- responsive extras ---------- */
-@media (max-width: 760px) {
-  .plate-strip-inner { grid-template-columns: repeat(3, 1fr); }
-  .idx-title { font-size: 1.3rem; }
-  .index-item { gap: 1rem; }
-}
-
 /* ---------- reveal animation ---------- */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
 .reveal.visible { opacity: 1; transform: none; }
@@ -355,6 +340,11 @@ li.fn-note { margin: .45rem 0; }
 /* ---------- misc ---------- */
 ::selection { background: var(--ochre-soft); color: var(--charcoal); }
 
+@media (max-width: 760px) {
+  .plate-strip-inner { grid-template-columns: repeat(3, 1fr); }
+  .idx-title { font-size: 1.3rem; }
+  .index-item { gap: 1rem; }
+}
 @media (max-width: 720px) {
   .site-nav { flex-wrap: wrap; }
   .brand { width: 100%; justify-content: center; }

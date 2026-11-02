@@ -77,14 +77,20 @@
     var lbCap = lb.querySelector("figcaption");
     function openLB(src, cap) {
       lbImg.src = src; lbCap.textContent = cap || "";
-      lb.hidden = false; document.body.style.overflow = "hidden";
+      lb.classList.add("open");
+      lb.hidden = false;
+      document.body.style.overflow = "hidden";
     }
-    function closeLB() { lb.hidden = true; document.body.style.overflow = ""; }
+    function closeLB() {
+      lb.classList.remove("open");
+      lb.hidden = true;
+      document.body.style.overflow = "";
+    }
     document.querySelectorAll(".prose .img-block img, .plate-card a, .strip-fig a").forEach(function (el) {
       el.addEventListener("click", function (e) {
         e.preventDefault();
         var cap = "";
-        var blk = el.closest(".img-block") || el.closest(".plate-card");
+        var blk = el.closest(".img-block") || el.closest(".plate-card") || el.closest(".strip-fig");
         if (blk) {
           var sib = blk.nextElementSibling;
           if (sib && (sib.classList.contains("fig-caption"))) cap = sib.textContent;
@@ -97,7 +103,7 @@
       });
     });
     lb.addEventListener("click", function (e) { if (e.target === lb || e.target.closest(".lb-close")) closeLB(); });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !lb.hidden) closeLB(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && lb.classList.contains("open")) closeLB(); });
   }
 
   /* ---------------- plates gallery filter ---------------- */
