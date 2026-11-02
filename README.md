@@ -32,7 +32,10 @@ jekyll build   # or just push — GitHub Pages builds automatically
 
 ## Copyright
 
+This is an unofficial fan-made digital edition, generated with AI from the
+original Spanish publication, for reading and study purposes. It is not
+affiliated with or endorsed by El Museo Canario.
+
 Book text and images © El Museo Canario, 2013. Authors: M.ª del Carmen Cruz de
-Mercadal, Teresa Delgado Darias, Javier Velasco Vázquez. This site is a digital
-reading edition made for personal/scholarly use; all content belongs to its
-authors and institution.
+Mercadal, Teresa Delgado Darias, Javier Velasco Vázquez. All content belongs to
+its authors and institution.

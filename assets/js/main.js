@@ -80,7 +80,7 @@
       lb.hidden = false; document.body.style.overflow = "hidden";
     }
     function closeLB() { lb.hidden = true; document.body.style.overflow = ""; }
-    document.querySelectorAll(".prose .img-block img, .plate-card a").forEach(function (el) {
+    document.querySelectorAll(".prose .img-block img, .plate-card a, .strip-fig a").forEach(function (el) {
       el.addEventListener("click", function (e) {
         e.preventDefault();
         var cap = "";
