@@ -14,9 +14,9 @@ Canaria, 2013) — the catalogue and study of the 214 ceramic stamps
   the 178 photographic plates
 - Bilingual ES/EN toggle on every page (preference remembered)
 - 135 footnotes preserved with hover tooltips and anchor links
-- Lightbox image viewer; searchable plate gallery (by inventory number)
-- "Pintadera workshop": a canvas where you compose your own stamped patterns
-  with the motifs from the book's typology
+- Lightbox image viewer with keyboard navigation; searchable plate gallery
+- "Pintadera workshop" on the home page: a canvas where you compose your own
+  stamped patterns with the motifs from the book's typology
 - Ambient stamping animation in the hero; geometric ornament system derived
   from the book's motif tables
 - Palette drawn from the artefacts: fired clay, red ochre, charcoal, sand
