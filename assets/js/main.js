@@ -156,7 +156,7 @@
   }
 
   /* ---------------- stamp impression images ---------------- */
-  var IMP_N = 6;
+  var IMP_N = 28;
   var IMGS = [];
   var imgLoads = [];
   for (var ii = 1; ii <= IMP_N; ii++) {
