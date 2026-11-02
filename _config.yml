@@ -1,0 +1,15 @@
+title: Pintaderas of El Museo Canario
+description: >-
+  Interactive bilingual digital edition (Spanish/English) of "Pintaderas de El
+  Museo Canario" (El Museo Canario, Las Palmas de Gran Canaria, 2013) — the
+  catalogue of the 214 ceramic stamps of pre-Hispanic Gran Canaria.
+lang: en
+baseurl: "/pintaderas"
+url: "https://takaji10.github.io"
+markdown: kramdown
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - build_notes
