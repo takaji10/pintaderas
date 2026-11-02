@@ -155,115 +155,109 @@
     });
   }
 
-  /* ---------------- motif stamping (canvas) ---------------- */
-  function stampMotif(ctx, x, y, r, motif, color, rot) {
+  /* ---------------- stamp impression images ---------------- */
+  var IMP_N = 6;
+  var IMGS = [];
+  var imgLoads = [];
+  for (var ii = 1; ii <= IMP_N; ii++) {
+    (function (n) {
+      var im = new Image();
+      imgLoads.push(new Promise(function (res) { im.onload = res; im.onerror = res; }));
+      im.src = "assets/stamps/imp" + n + ".png";
+      IMGS[n] = im;
+    })(ii);
+  }
+  var tintCache = {};
+  function tinted(n, color) {
+    var key = n + "|" + color;
+    if (tintCache[key]) return tintCache[key];
+    var img = IMGS[n];
+    if (!img || !img.complete || !img.naturalWidth) return null;
+    var c = document.createElement("canvas");
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    var cx = c.getContext("2d");
+    cx.drawImage(img, 0, 0);
+    cx.globalCompositeOperation = "source-in";
+    cx.fillStyle = color;
+    cx.fillRect(0, 0, c.width, c.height);
+    tintCache[key] = c;
+    return c;
+  }
+  function stampImp(ctx, n, x, y, size, rot, color, alpha) {
+    var t = tinted(n, color);
+    if (!t) return;
     ctx.save();
-    ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = 0.82;
-    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(2, r * 0.09);
-    var i;
-    if (motif === "circles") {
-      for (i = 1; i <= 4; i++) { ctx.beginPath(); ctx.arc(0, 0, r * i / 4.2, 0, 7); ctx.stroke(); }
-    } else if (motif === "triangles") {
-      for (i = 1; i <= 2; i++) {
-        var rr = r * i / 2.2;
-        ctx.beginPath();
-        ctx.moveTo(0, -rr); ctx.lineTo(rr * 0.87, rr * 0.5); ctx.lineTo(-rr * 0.87, rr * 0.5);
-        ctx.closePath(); ctx.stroke();
-      }
-    } else if (motif === "rhombus") {
-      for (i = 1; i <= 2; i++) {
-        var rr2 = r * i / 2.2;
-        ctx.beginPath();
-        ctx.moveTo(0, -rr2); ctx.lineTo(rr2, 0); ctx.lineTo(0, rr2); ctx.lineTo(-rr2, 0);
-        ctx.closePath(); ctx.stroke();
-      }
-    } else if (motif === "broken") {
-      ctx.beginPath();
-      var steps = 6;
-      for (i = 0; i <= steps; i++) {
-        var px = -r + (2 * r) * i / steps;
-        var py = (i % 2 === 0 ? 1 : -1) * r * 0.35;
-        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      }
-      ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-r, r * 0.55); ctx.lineTo(r, r * 0.55); ctx.stroke();
-    } else if (motif === "biojival") {
-      ctx.beginPath();
-      ctx.moveTo(0, -r);
-      ctx.bezierCurveTo(r * 0.7, -r * 0.5, r * 0.7, r * 0.2, 0, r * 0.55);
-      ctx.bezierCurveTo(-r * 0.7, r * 0.2, -r * 0.7, -r * 0.5, 0, -r);
-      ctx.stroke();
-      for (i = 1; i <= 2; i++) { ctx.beginPath(); ctx.arc(0, 0, r * i / 3, 0, 7); ctx.stroke(); }
-    } else { // squares
-      for (i = 1; i <= 3; i++) {
-        var s = r * i / 3.2;
-        ctx.strokeRect(-s, -s, 2 * s, 2 * s);
-      }
-    }
+    ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha;
+    ctx.drawImage(t, -size / 2, -size / 2, size, size);
     ctx.restore();
   }
 
-  /* ---------------- hero canvas: ambient stamping ---------------- */
+  /* ---------------- hero canvas: ambient impressions ---------------- */
   var heroCanvas = document.getElementById("stamp-canvas");
   if (heroCanvas) {
     var hctx = heroCanvas.getContext("2d");
-    var motifs = ["circles", "triangles", "rhombus", "broken", "biojival", "squares"];
-    var tints = ["rgba(233,220,201,0.5)", "rgba(217,178,115,0.5)", "rgba(31,25,19,0.35)"];
-    function sizeHero() {
-      heroCanvas.width = heroCanvas.offsetWidth;
-      heroCanvas.height = heroCanvas.offsetHeight;
-      hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
-    }
-    sizeHero();
-    window.addEventListener("resize", sizeHero);
-    var pressed = [];
-    function pressOne() {
-      var w = heroCanvas.width, h = heroCanvas.height;
-      var x = 40 + Math.random() * (w - 80);
-      var y = 40 + Math.random() * (h - 80);
-      var m = motifs[Math.floor(Math.random() * motifs.length)];
-      var r = 16 + Math.random() * 26;
-      var rot = (Math.random() - 0.5) * 0.7;
-      var col = tints[Math.floor(Math.random() * tints.length)];
-      pressed.push({ x: x, y: y, r: r, m: m, c: col, rot: rot, born: performance.now() });
-      if (pressed.length > 60) pressed.shift();
-    }
-    function draw(now) {
-      hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
-      pressed.forEach(function (p) {
-        var age = now - p.born;
-        var alpha = age < 600 ? age / 600 : 1;
-        hctx.globalAlpha = alpha;
-        stampMotif(hctx, p.x, p.y, p.r, p.m, p.c, p.rot);
-        hctx.globalAlpha = 1;
-      });
+    var tints = ["rgba(233,220,201,0.55)", "rgba(217,178,115,0.5)", "rgba(31,25,19,0.4)"];
+    Promise.all(imgLoads).then(function () {
+      function sizeHero() {
+        heroCanvas.width = heroCanvas.offsetWidth;
+        heroCanvas.height = heroCanvas.offsetHeight;
+        hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
+      }
+      sizeHero();
+      window.addEventListener("resize", sizeHero);
+      var pressed = [];
+      function pressOne() {
+        var w = heroCanvas.width, h = heroCanvas.height;
+        pressed.push({
+          x: 40 + Math.random() * (w - 80),
+          y: 40 + Math.random() * (h - 80),
+          s: 34 + Math.random() * 54,
+          rot: (Math.random() - 0.5) * 1.2,
+          n: 1 + Math.floor(Math.random() * IMP_N),
+          c: tints[Math.floor(Math.random() * tints.length)],
+          born: performance.now()
+        });
+        if (pressed.length > 40) pressed.shift();
+      }
+      function draw(now) {
+        hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
+        pressed.forEach(function (p) {
+          var age = now - p.born;
+          var alpha = age < 600 ? age / 600 : 1;
+          stampImp(hctx, p.n, p.x, p.y, p.s, p.rot, p.c, alpha * 0.9);
+        });
+        requestAnimationFrame(draw);
+      }
       requestAnimationFrame(draw);
-    }
-    requestAnimationFrame(draw);
-    setInterval(pressOne, 700);
-    for (var i = 0; i < 12; i++) pressOne();
+      setInterval(pressOne, 800);
+      for (var j = 0; j < 9; j++) pressOne();
+    });
   }
 
-  /* ---------------- workshop toy ---------------- */
+  /* ---------------- workshop toy: real matrix impressions ---------------- */
   var toy = document.getElementById("toy-canvas");
   if (toy) {
     var tctx = toy.getContext("2d");
-    var curMotif = "circles", curColor = "#A64B2A";
+    var curImp = 1, curColor = "#A64B2A";
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     function sizeToy() {
       var w = toy.clientWidth || 900;
       toy.width = w * dpr; toy.height = 420 * dpr;
       tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    sizeToy();
-    window.addEventListener("resize", sizeToy);
+    Promise.all(imgLoads).then(function () {
+      sizeToy();
+      window.addEventListener("resize", sizeToy);
+      var firstBtn = document.querySelector("#motif-picker .tool");
+      if (firstBtn) firstBtn.classList.add("active");
+    });
     var dragging = false, lastStamp = 0;
 
     document.querySelectorAll("#motif-picker .tool").forEach(function (b) {
       b.addEventListener("click", function () {
         document.querySelectorAll("#motif-picker .tool").forEach(function (x) { x.classList.remove("active"); });
         b.classList.add("active");
-        curMotif = b.getAttribute("data-motif");
+        curImp = parseInt(b.getAttribute("data-imp"), 10) || 1;
       });
     });
     document.querySelectorAll("#color-picker .swatch").forEach(function (b) {
@@ -285,9 +279,9 @@
       var x = (e.clientX - rect.left) * (toy.width / dpr / rect.width);
       var y = (e.clientY - rect.top) * (toy.height / dpr / rect.height);
       var now = performance.now();
-      if (dragging && now - lastStamp < 90) return;
+      if (dragging && now - lastStamp < 110) return;
       lastStamp = now;
-      stampMotif(tctx, x, y, 22 + Math.random() * 8, curMotif, curColor, (Math.random() - 0.5) * 0.5);
+      stampImp(tctx, curImp, x, y, 88 + Math.random() * 30, (Math.random() - 0.5) * 0.55, curColor, 0.85);
     }
     toy.addEventListener("pointerdown", function (e) {
       dragging = true; toy.setPointerCapture(e.pointerId); doStamp(e);

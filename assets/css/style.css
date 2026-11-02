@@ -97,7 +97,7 @@ body {
 #stamp-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5; }
 .hero-inner { position: relative; max-width: 46rem; margin: 0 auto; }
 .hero-stamp { display: flex; justify-content: center; margin-bottom: 1.4rem; }
-.hero-stamp svg { animation: stamp-press 5s ease-in-out infinite; filter: drop-shadow(0 6px 10px rgba(0,0,0,.3)); }
+.hero-stamp .impression { animation: stamp-press 5s ease-in-out infinite; filter: drop-shadow(0 6px 10px rgba(0,0,0,.3)); }
 @keyframes stamp-press {
   0%, 100% { transform: scale(1) rotate(-4deg); }
   50% { transform: scale(.94) rotate(4deg); }
@@ -120,6 +120,16 @@ body {
 .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.3); }
 .btn-ghost { background: transparent; color: var(--sand); border: 1.5px solid var(--sand); box-shadow: none; }
 .btn-ghost:hover { background: rgba(233,220,201,.15); }
+
+/* ---------- real stamp impressions (colorizable masks) ---------- */
+.impression {
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask: var(--imp) center / contain no-repeat;
+  mask: var(--imp) center / contain no-repeat;
+  aspect-ratio: 1 / 1;
+}
+.brand .impression { flex: 0 0 auto; }
 
 /* ---------- TOC cards ---------- */
 .toc-grid {
