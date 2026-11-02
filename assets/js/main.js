@@ -163,7 +163,7 @@
     (function (n) {
       var im = new Image();
       imgLoads.push(new Promise(function (res) { im.onload = res; im.onerror = res; }));
-      im.src = "assets/stamps/imp" + n + ".png?" + (window.ASSET_VER || "v=12");
+      im.src = "assets/stamps/stamp" + n + ".png?" + (window.ASSET_VER || "v=14");
       IMGS[n] = im;
     })(ii);
   }
