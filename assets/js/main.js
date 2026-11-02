@@ -90,7 +90,10 @@
           if (sib && sib.classList.contains("fig-caption")) cap = sib.textContent;
           else {
             var fc = blk.querySelector("figcaption");
-            if (fc) cap = fc.textContent;
+            if (fc) {
+              var pc = fc.querySelector(".plate-cap");
+              cap = pc ? pc.textContent : fc.textContent;
+            }
           }
         }
         gallery.push({ src: el.src, cap: cap });

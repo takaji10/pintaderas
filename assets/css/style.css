@@ -331,11 +331,11 @@ li.fn-note { margin: .45rem 0; }
 
 /* ---------- v32 additions ---------- */
 
-/* ghost stamp backgrounds on TOC cards */
+/* ghost stamp backgrounds on TOC cards — offset past the right edge */
 .toc-card { position: relative; overflow: hidden; }
 .card-bg {
-  position: absolute; right: -22%; top: 50%; transform: translateY(-50%) rotate(8deg);
-  width: 150%; max-width: none; height: auto; opacity: .10; pointer-events: none;
+  position: absolute; left: auto; right: -34%; top: 50%; transform: translateY(-50%) rotate(8deg);
+  width: 118%; max-width: none; height: auto; opacity: .10; pointer-events: none;
   transition: opacity .2s, transform .3s;
 }
 .toc-card:hover .card-bg { opacity: .16; transform: translateY(-50%) rotate(4deg); }
@@ -406,34 +406,47 @@ li.fn-note { margin: .45rem 0; }
 .plates-tech .plate-card img { height: 11rem; }
 .prose h2.tbl-title { scroll-margin-top: 4.5rem; }
 
-/* museum ficha inside plate cards */
+/* museum ficha inside plate cards — sits below the caption, in the card body */
 .plate-ficha {
-  margin-top: .45rem; border-top: 1px dashed var(--line); padding-top: .45rem;
-  font-size: .8rem;
+  margin: 0 .7rem .7rem; border: 1px solid var(--line); border-radius: .5rem;
+  background: var(--paper-dark); font-size: .8rem; padding: .45rem .6rem;
 }
 .plate-ficha summary {
   cursor: pointer; font-weight: 600; color: var(--clay); list-style: none;
   display: flex; align-items: center; gap: .35rem; user-select: none;
+  font-size: .76rem;
 }
 .plate-ficha summary::-webkit-details-marker { display: none; }
 .plate-ficha summary::before { content: "▸"; font-size: .7rem; transition: transform .15s; }
 .plate-ficha[open] summary::before { transform: rotate(90deg); }
-.plate-ficha[open] summary { margin-bottom: .4rem; }
+.plate-ficha[open] summary { margin-bottom: .5rem; }
 .museum-photo {
-  display: block; width: 100%; max-height: 240px; object-fit: contain;
-  background: #fff; border: 1px solid var(--line); border-radius: .35rem;
-  margin: 0 0 .45rem; padding: .3rem;
+  display: block; width: 100%; max-height: 220px; object-fit: contain;
+  background: #fff; border: 1px solid var(--line); border-radius: .4rem;
+  margin: 0 0 .55rem; padding: .35rem;
 }
-.ficha-row { display: grid; grid-template-columns: 7.2rem 1fr; gap: .5rem; margin-bottom: .3rem; }
-.ficha-key { font-weight: 600; color: var(--clay-deep); font-size: .74rem; }
-.ficha-val { color: #4a3c2d; line-height: 1.5; font-size: .78rem; }
+.ficha-row { display: grid; grid-template-columns: 7.4rem 1fr; gap: .55rem; margin-bottom: .4rem; }
+.ficha-key { font-weight: 600; color: var(--clay-deep); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; padding-top: .1rem; }
+.ficha-val { color: #4a3c2d; line-height: 1.55; font-size: .78rem; }
 .ficha-note { color: #9a8a72; font-size: .72rem; font-style: italic; }
-.ficha-link { display: inline-block; margin-top: .35rem; font-size: .78rem; color: var(--clay); text-decoration: none; font-weight: 600; }
+.ficha-link { display: inline-block; margin-top: .4rem; font-size: .78rem; color: var(--clay); text-decoration: none; font-weight: 600; }
 .ficha-link:hover { text-decoration: underline; }
-.ficha-credit { display: block; margin-top: .3rem; font-size: .7rem; color: #9a8a72; }
+.ficha-credit { display: block; margin-top: .35rem; font-size: .7rem; color: #9a8a72; }
 @media (max-width: 480px) {
   .ficha-row { grid-template-columns: 1fr; gap: .1rem; }
 }
+
+/* mention pills under plate captions */
+.plate-refs { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; font-size: .74rem; color: #8a7a62; margin-top: .3rem; }
+.mention-pill {
+  display: inline-block; padding: .08rem .5rem; font-size: .73rem; text-decoration: none;
+  background: var(--paper-dark); border: 1px solid var(--line); border-radius: 1rem;
+  color: var(--clay); font-weight: 600; transition: all .15s;
+}
+.mention-pill:hover { background: var(--clay); border-color: var(--clay); color: #fff; }
+
+/* exact-spot mention anchors in the text */
+.reg-mention { display: block; height: 0; scroll-margin-top: 5rem; }
 
 /* about page */
 .about-hero {
@@ -472,7 +485,7 @@ li.fn-note { margin: .45rem 0; }
 }
 
 @media (max-width: 720px) {
-  .card-bg { right: -30%; }
+  .card-bg { right: -40%; width: 105%; }
   .swatch { width: 2.5rem; height: 2.5rem; }
   .back-top { right: .9rem; bottom: .9rem; width: 2.6rem; height: 2.6rem; }
   .page-toc { padding-top: .9rem; }
