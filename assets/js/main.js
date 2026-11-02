@@ -1,4 +1,4 @@
-/* Pintaderas de El Museo Canario — interactions */
+/* Pintaderas de El Museo Canario — interactions (v5) */
 (function () {
   "use strict";
 
@@ -22,61 +22,96 @@
     setLang(saved === "es" || saved === "en" ? saved : "en", false);
   }
 
-  /* ---------------- chapters dropdown ---------------- */
-  document.querySelectorAll(".dropdown").forEach(function (dd) {
-    var btn = dd.querySelector(".dropbtn");
-    if (!btn) return;
+  /* ---------------- side flyout tabs ---------------- */
+  document.querySelectorAll(".stab").forEach(function (stab) {
+    var btn = stab.querySelector(".stab-btn");
+    if (!btn || btn.tagName === "A") return;
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
-      dd.classList.toggle("open");
+      var wasOpen = stab.classList.contains("open");
+      document.querySelectorAll(".stab.open").forEach(function (s) { s.classList.remove("open"); });
+      if (!wasOpen) stab.classList.add("open");
     });
-    dd.addEventListener("mouseenter", function () { dd.classList.add("open"); });
-    dd.addEventListener("mouseleave", function () { dd.classList.remove("open"); });
   });
-  document.addEventListener("click", function () {
-    document.querySelectorAll(".dropdown.open").forEach(function (d) { d.classList.remove("open"); });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".stab")) {
+      document.querySelectorAll(".stab.open").forEach(function (s) { s.classList.remove("open"); });
+    }
   });
-
-  /* ---------------- reading progress ---------------- */
-  var bar = document.getElementById("progress-bar");
-  function onScroll() {
-    var h = document.documentElement;
-    var max = h.scrollHeight - h.clientHeight;
-    var pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
-    if (bar) bar.style.width = pct + "%";
-  }
-  document.addEventListener("scroll", onScroll, { passive: true });
-  onScroll();
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".stab.open").forEach(function (s) { s.classList.remove("open"); });
+    }
+  });
+  // close flyout when a link inside is followed
+  document.querySelectorAll(".stab-fly a").forEach(function (a) {
+    a.addEventListener("click", function () {
+      document.querySelectorAll(".stab.open").forEach(function (s) { s.classList.remove("open"); });
+    });
+  });
 
   /* ---------------- reveal on scroll ---------------- */
-  var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (en) {
-      if (en.isIntersecting) { en.target.classList.add("visible"); io.unobserve(en.target); }
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("visible"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.06 });
+    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+    var io2 = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          en.target.style.opacity = 1; en.target.style.transform = "none";
+          io2.unobserve(en.target);
+        }
+      });
+    }, { threshold: 0.04 });
+    document.querySelectorAll(".img-block, .plate-card, .table-wrap, .q-block").forEach(function (el) {
+      el.style.opacity = 0; el.style.transform = "translateY(12px)";
+      el.style.transition = "opacity .5s ease, transform .5s ease";
+      io2.observe(el);
     });
-  }, { threshold: 0.08 });
-  document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
-  // also reveal figures as they enter
-  var io2 = new IntersectionObserver(function (entries) {
-    entries.forEach(function (en) {
-      if (en.isIntersecting) {
-        en.target.style.opacity = 1; en.target.style.transform = "none";
-        io2.unobserve(en.target);
-      }
-    });
-  }, { threshold: 0.05 });
-  document.querySelectorAll(".img-block, .plate-card, .table-wrap").forEach(function (el) {
-    el.style.opacity = 0; el.style.transform = "translateY(14px)";
-    el.style.transition = "opacity .55s ease, transform .55s ease";
-    io2.observe(el);
-  });
+  }
 
-  /* ---------------- lightbox ---------------- */
+  /* ---------------- gallery lightbox ---------------- */
   var lb = document.getElementById("lightbox");
   if (lb) {
     var lbImg = lb.querySelector("img");
     var lbCap = lb.querySelector("figcaption");
-    function openLB(src, cap) {
-      lbImg.src = src; lbCap.textContent = cap || "";
+    var lbCount = lb.querySelector(".lb-count");
+    var gallery = []; // {src, cap}
+    var current = 0;
+
+    function collectGallery() {
+      gallery = [];
+      document.querySelectorAll(".lang-block:not([hidden]) .img-block img, .lang-block:not([hidden]) .plate-card img, .lang-block:not([hidden]) .strip-fig a").forEach(function (el) {
+        var src = el.tagName === "IMG" ? el.src : el.querySelector("img").src;
+        var cap = "";
+        var blk = el.closest(".img-block") || el.closest(".plate-card") || el.closest(".strip-fig");
+        if (blk) {
+          var sib = blk.nextElementSibling;
+          if (sib && sib.classList.contains("fig-caption")) cap = sib.textContent;
+          else {
+            var fc = blk.querySelector("figcaption");
+            if (fc) cap = fc.textContent;
+          }
+        }
+        gallery.push({ src: src, cap: cap });
+      });
+    }
+    function show(i) {
+      if (!gallery.length) return;
+      current = (i + gallery.length) % gallery.length;
+      lbImg.src = gallery[current].src;
+      lbCap.textContent = gallery[current].cap || "";
+      lbCount.textContent = (current + 1) + " / " + gallery.length;
+    }
+    function openLB(target) {
+      collectGallery();
+      var idx = 0;
+      var src = target.tagName === "IMG" ? target.src : target.querySelector("img").src;
+      for (var i = 0; i < gallery.length; i++) { if (gallery[i].src === src) { idx = i; break; } }
+      show(idx);
       lb.classList.add("open");
       lb.hidden = false;
       document.body.style.overflow = "hidden";
@@ -86,44 +121,110 @@
       lb.hidden = true;
       document.body.style.overflow = "";
     }
-    document.querySelectorAll(".prose .img-block img, .plate-card a, .strip-fig a").forEach(function (el) {
-      el.addEventListener("click", function (e) {
-        e.preventDefault();
-        var cap = "";
-        var blk = el.closest(".img-block") || el.closest(".plate-card") || el.closest(".strip-fig");
-        if (blk) {
-          var sib = blk.nextElementSibling;
-          if (sib && (sib.classList.contains("fig-caption"))) cap = sib.textContent;
-          else {
-            var fc = blk.querySelector("figcaption");
-            if (fc) cap = fc.textContent;
-          }
-        }
-        openLB(el.tagName === "IMG" ? el.src : el.querySelector("img").src, cap);
-      });
+    document.querySelectorAll(".lang-block .img-block img, .lang-block .plate-card img").forEach(function (el) {
+      el.addEventListener("click", function () { openLB(el); });
     });
-    lb.addEventListener("click", function (e) { if (e.target === lb || e.target.closest(".lb-close")) closeLB(); });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && lb.classList.contains("open")) closeLB(); });
+    lb.querySelector(".lb-close").addEventListener("click", closeLB);
+    lb.querySelector(".lb-prev").addEventListener("click", function () { show(current - 1); });
+    lb.querySelector(".lb-next").addEventListener("click", function () { show(current + 1); });
+    lb.addEventListener("click", function (e) { if (e.target === lb) closeLB(); });
+    document.addEventListener("keydown", function (e) {
+      if (!lb.classList.contains("open")) return;
+      if (e.key === "Escape") closeLB();
+      else if (e.key === "ArrowLeft") show(current - 1);
+      else if (e.key === "ArrowRight") show(current + 1);
+    });
   }
 
   /* ---------------- plates gallery filter ---------------- */
   var search = document.getElementById("plate-search");
   if (search) {
-    var cards = Array.prototype.slice.call(document.querySelectorAll(".plate-card"));
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".lang-block:not([hidden]) .plate-card"));
     var count = document.getElementById("plate-count");
-    function updCount(n) {
-      if (count) count.textContent = n + " / " + cards.length;
+    var allCards = Array.prototype.slice.call(document.querySelectorAll(".plate-card"));
+    // filter whichever language block is visible
+    function visibleCards() {
+      return allCards.filter(function (c) { return c.offsetParent !== null; });
     }
-    updCount(cards.length);
+    function updCount(n, total) { if (count) count.textContent = n + " / " + total; }
+    updCount(visibleCards().length, visibleCards().length);
     search.addEventListener("input", function () {
       var q = search.value.trim().toLowerCase();
+      var vis = visibleCards();
       var shown = 0;
-      cards.forEach(function (c) {
+      vis.forEach(function (c) {
         var hit = !q || (c.getAttribute("data-reg") || "").toLowerCase().indexOf(q) !== -1;
         c.style.display = hit ? "" : "none";
         if (hit) shown++;
       });
-      updCount(shown);
+      updCount(shown, vis.length);
+    });
+  }
+
+  /* ---------------- quiz ---------------- */
+  var quizDataEl = document.getElementById("quiz-data");
+  if (quizDataEl) {
+    var answers = JSON.parse(quizDataEl.textContent);
+    var given = new Array(answers.length).fill(null);
+    var verdicts = {
+      ok: { es: "Correcto.", en: "Correct." },
+      ko: { es: "No es correcto.", en: "Not correct." }
+    };
+    var finalMsgs = [
+      { min: 6, es: "Dominas el catálogo. Enhorabuena.", en: "You know the catalogue inside out. Congratulations." },
+      { min: 4, es: "Buena lectura. Casi todo atendido.", en: "A careful reader. Almost everything noticed." },
+      { min: 2, es: "Un buen comienzo: el catálogo tiene más que contar.", en: "A good start: the catalogue has more to tell." },
+      { min: 0, es: "El taller y las placas te esperan para otra visita.", en: "The workshop and the plates await another visit." }
+    ];
+    function curLang() { return body.classList.contains("lang-es") ? "es" : "en"; }
+    function updateResult() {
+      var res = document.querySelector(".q-result");
+      if (!res) return;
+      var answered = given.filter(function (g) { return g !== null; }).length;
+      if (answered < answers.length) { res.hidden = true; return; }
+      var score = given.filter(function (g, i) { return g === answers[i]; }).length;
+      var msg = finalMsgs.find(function (m) { return score >= m.min; });
+      res.querySelector(".q-score").textContent =
+        (curLang() === "es" ? "Puntuación: " : "Score: ") + score + " / " + answers.length;
+      res.querySelector(".q-verdict-final").textContent = msg[curLang()];
+      res.hidden = false;
+      res.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    document.querySelectorAll(".q-opt").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var qi = parseInt(btn.getAttribute("data-q"), 10) - 1;
+        var oi = parseInt(btn.getAttribute("data-o"), 10);
+        if (given[qi] !== null) return;
+        given[qi] = oi;
+        var block = btn.closest(".q-block");
+        var verdict = block.querySelector(".q-verdict");
+        block.querySelectorAll(".q-opt").forEach(function (b) { b.disabled = true; });
+        if (oi === answers[qi]) {
+          btn.classList.add("correct");
+          verdict.textContent = verdicts.ok[curLang()];
+          verdict.className = "q-verdict ok";
+        } else {
+          btn.classList.add("wrong");
+          verdict.textContent = verdicts.ko[curLang()];
+          verdict.className = "q-verdict ko";
+          var right = block.querySelector('.q-opt[data-o="' + answers[qi] + '"]');
+          if (right) right.classList.add("correct");
+        }
+        verdict.hidden = false;
+        updateResult();
+      });
+    });
+    var restart = document.getElementById("q-restart");
+    if (restart) restart.addEventListener("click", function () {
+      given = new Array(answers.length).fill(null);
+      document.querySelectorAll(".q-opt").forEach(function (b) {
+        b.disabled = false; b.classList.remove("correct", "wrong");
+      });
+      document.querySelectorAll(".q-verdict").forEach(function (v) { v.hidden = true; });
+      var res = document.querySelector(".q-result");
+      if (res) res.hidden = true;
+      var first = document.querySelector(".q-block");
+      if (first) first.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
@@ -132,7 +233,7 @@
     ctx.save();
     ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = 0.82;
     ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(2, r * 0.09);
-    var i, a;
+    var i;
     if (motif === "circles") {
       for (i = 1; i <= 4; i++) { ctx.beginPath(); ctx.arc(0, 0, r * i / 4.2, 0, 7); ctx.stroke(); }
     } else if (motif === "triangles") {
@@ -223,7 +324,7 @@
     var curMotif = "circles", curColor = "#A64B2A";
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     function sizeToy() {
-      var w = toy.clientWidth, h = toy.clientHeight || 420;
+      var w = toy.clientWidth || 900;
       toy.width = w * dpr; toy.height = 420 * dpr;
       tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
