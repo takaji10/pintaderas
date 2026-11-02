@@ -194,6 +194,7 @@
 
   /* ---------------- hero canvas: ambient impressions ---------------- */
   var heroCanvas = document.getElementById("stamp-canvas");
+  var heroStamp = document.getElementById("hero-stamp");
   if (heroCanvas) {
     var hctx = heroCanvas.getContext("2d");
     var tints = ["rgba(233,220,201,0.55)", "rgba(217,178,115,0.5)", "rgba(31,25,19,0.4)"];
@@ -202,22 +203,64 @@
         heroCanvas.width = heroCanvas.offsetWidth;
         heroCanvas.height = heroCanvas.offsetHeight;
         hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
+        pressed = [];   // re-seed after resize (rotation/orientation change)
+        computeExcl();
       }
       sizeHero();
       window.addEventListener("resize", sizeHero);
       var pressed = [];
+      var excl = null;   // keep-out circle around the central hero stamp
+      function computeExcl() {
+        if (!heroStamp) { excl = null; return; }
+        var a = heroStamp.getBoundingClientRect();
+        var b = heroCanvas.getBoundingClientRect();
+        if (!a.width || !b.width) { excl = null; return; }
+        excl = {
+          x: a.left + a.width / 2 - b.left,
+          y: a.top + a.height / 2 - b.top,
+          r: Math.max(a.width, a.height) * 0.62
+        };
+      }
+      computeExcl();
+      function overlaps(x, y, s) {
+        // bounding-circle test: no stamp may overlap another
+        var r = s * 0.55;
+        if (excl) {
+          var dx = x - excl.x, dy = y - excl.y;
+          if (dx * dx + dy * dy < (excl.r + r) * (excl.r + r)) return true;
+        }
+        for (var i = 0; i < pressed.length; i++) {
+          var p = pressed[i];
+          var dx = x - p.x, dy = y - p.y;
+          var minD = r + p.s * 0.55;
+          if (dx * dx + dy * dy < minD * minD) return true;
+        }
+        return false;
+      }
       function pressOne() {
         var w = heroCanvas.width, h = heroCanvas.height;
-        pressed.push({
-          x: 40 + Math.random() * (w - 80),
-          y: 40 + Math.random() * (h - 80),
-          s: 90 + Math.random() * 220,
-          rot: (Math.random() - 0.5) * 1.2,
-          n: 1 + Math.floor(Math.random() * IMP_N),
-          c: tints[Math.floor(Math.random() * tints.length)],
-          born: performance.now()
-        });
-        if (pressed.length > 14) pressed.shift();
+        if (w < 40 || h < 40) return;
+        var small = w < 700;                       // phones/tablets: smaller seals
+        var sMin = small ? 44 : 100;
+        var sMax = small ? 130 : 300;
+        for (var tries = 0; tries < 24; tries++) {
+          var s = sMin + Math.random() * (sMax - sMin);
+          var x = s * 0.5 + 8 + Math.random() * Math.max(1, w - s - 16);
+          var y = s * 0.5 + 8 + Math.random() * Math.max(1, h - s - 16);
+          if (!overlaps(x, y, s)) {
+            pressed.push({
+              x: x, y: y, s: s,
+              rot: (Math.random() - 0.5) * 1.2,
+              n: 1 + Math.floor(Math.random() * IMP_N),
+              c: tints[Math.floor(Math.random() * tints.length)],
+              born: performance.now()
+            });
+            if (pressed.length > 12) pressed.shift();
+            return;
+          }
+        }
+        // canvas is full: retire the oldest impression to keep it breathing
+        pressed.shift();
       }
       function draw(now) {
         hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
@@ -295,7 +338,6 @@
   }
 
   /* ---------------- hero stamp: random from the set, slow rotation ---------------- */
-  var heroStamp = document.getElementById("hero-stamp");
   if (heroStamp) {
     var VER = window.ASSET_VER || "v=31";
     var lastN = parseInt((heroStamp.src.match(/stamp(\d+)/) || [0, 17])[1], 10);
