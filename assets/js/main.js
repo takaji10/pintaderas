@@ -82,7 +82,7 @@
 
     function collectGallery() {
       gallery = [];
-      document.querySelectorAll(".lang-block:not([hidden]) .img-block img, .lang-block:not([hidden]) .plate-card img").forEach(function (el) {
+      document.querySelectorAll(".lang-block:not([hidden]) .img-block img, .lang-block:not([hidden]) .plate-card > img").forEach(function (el) {
         var cap = "";
         var blk = el.closest(".img-block") || el.closest(".plate-card");
         if (blk) {
@@ -117,7 +117,7 @@
       lb.hidden = true;
       document.body.style.overflow = "";
     }
-    document.querySelectorAll(".lang-block .img-block img, .lang-block .plate-card img").forEach(function (el) {
+    document.querySelectorAll(".lang-block .img-block img, .lang-block .plate-card > img").forEach(function (el) {
       el.addEventListener("click", function () { openLB(el); });
     });
     lb.querySelector(".lb-close").addEventListener("click", closeLB);
@@ -156,14 +156,14 @@
   }
 
   /* ---------------- stamp impression images ---------------- */
-  var IMP_N = 28;
+  var IMP_N = 25;
   var IMGS = [];
   var imgLoads = [];
   for (var ii = 1; ii <= IMP_N; ii++) {
     (function (n) {
       var im = new Image();
       imgLoads.push(new Promise(function (res) { im.onload = res; im.onerror = res; }));
-      im.src = "assets/stamps/stamp" + n + ".png?" + (window.ASSET_VER || "v=14");
+      im.src = "assets/stamps/stamp" + n + ".png?" + (window.ASSET_VER || "v=31");
       IMGS[n] = im;
     })(ii);
   }
@@ -211,13 +211,13 @@
         pressed.push({
           x: 40 + Math.random() * (w - 80),
           y: 40 + Math.random() * (h - 80),
-          s: 34 + Math.random() * 54,
+          s: 90 + Math.random() * 220,
           rot: (Math.random() - 0.5) * 1.2,
           n: 1 + Math.floor(Math.random() * IMP_N),
           c: tints[Math.floor(Math.random() * tints.length)],
           born: performance.now()
         });
-        if (pressed.length > 40) pressed.shift();
+        if (pressed.length > 14) pressed.shift();
       }
       function draw(now) {
         hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
@@ -229,8 +229,8 @@
         requestAnimationFrame(draw);
       }
       requestAnimationFrame(draw);
-      setInterval(pressOne, 800);
-      for (var j = 0; j < 9; j++) pressOne();
+      setInterval(pressOne, 1200);
+      for (var j = 0; j < 6; j++) pressOne();
     });
   }
 
@@ -252,6 +252,7 @@
       if (firstBtn) firstBtn.classList.add("active");
     });
     var dragging = false, lastStamp = 0;
+    var lastClick = 0;
 
     document.querySelectorAll("#motif-picker .tool").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -279,15 +280,100 @@
       var x = (e.clientX - rect.left) * (toy.width / dpr / rect.width);
       var y = (e.clientY - rect.top) * (toy.height / dpr / rect.height);
       var now = performance.now();
-      if (dragging && now - lastStamp < 110) return;
-      lastStamp = now;
+      if (now - lastClick < 120) return;   // debounce double-taps
+      lastClick = now;
       stampImp(tctx, curImp, x, y, 88 + Math.random() * 30, (Math.random() - 0.5) * 0.55, curColor, 0.85);
     }
+    // single press per click — no drag stamping
     toy.addEventListener("pointerdown", function (e) {
-      dragging = true; toy.setPointerCapture(e.pointerId); doStamp(e);
+      doStamp(e);
     });
-    toy.addEventListener("pointermove", function (e) { if (dragging) doStamp(e); });
-    toy.addEventListener("pointerup", function () { dragging = false; });
-    toy.addEventListener("pointerleave", function () { dragging = false; });
+    toy.addEventListener("pointermove", function (e) {
+      // suppress any drag behaviour
+      if (e.buttons !== 0) e.preventDefault();
+    });
   }
+
+  /* ---------------- hero stamp: random from the set, slow rotation ---------------- */
+  var heroStamp = document.getElementById("hero-stamp");
+  if (heroStamp) {
+    var VER = window.ASSET_VER || "v=31";
+    var lastN = parseInt((heroStamp.src.match(/stamp(\d+)/) || [0, 17])[1], 10);
+    function randStamp() {
+      var n = lastN;
+      while (n === lastN) n = 1 + Math.floor(Math.random() * 25);
+      return n;
+    }
+    function swap() {
+      lastN = randStamp();
+      heroStamp.style.opacity = 0;
+      setTimeout(function () {
+        heroStamp.src = "assets/stamps/stamp" + lastN + "_sand.png?" + VER;
+        heroStamp.style.opacity = 1;
+      }, 450);
+    }
+    heroStamp.style.transition = "opacity .45s ease";
+    setInterval(swap, 7000);
+  }
+
+  /* ---------------- section jump menu: scrollspy + progress ticks ---------------- */
+  var tocs = document.querySelectorAll(".page-toc");
+  if (tocs.length && bar) {
+    var heads = [];
+    document.querySelectorAll(".page-toc a").forEach(function (a) {
+      var el = document.getElementById(a.getAttribute("href").slice(1));
+      var block = a.closest(".lang-block");
+      if (el && block) heads.push({ el: el, link: a, block: block });
+    });
+    // tick marks on the progress bar
+    var ticks = document.createElement("div");
+    ticks.className = "progress-ticks";
+    heads.forEach(function (h) {
+      var t = document.createElement("span");
+      t.className = "progress-tick";
+      ticks.appendChild(t);
+      h.tick = t;
+    });
+    bar.parentNode.appendChild(ticks);
+    function updateToc() {
+      var h = document.documentElement;
+      var max = h.scrollHeight - h.clientHeight;
+      var y = h.scrollTop + 120;
+      var cur = null;
+      heads.forEach(function (h2) {
+        h2.vis = h2.block.offsetWidth > 0;
+        if (h2.vis && h2.el.offsetTop <= y) cur = h2;
+      });
+      heads.forEach(function (h2) {
+        h2.link.classList.toggle("here", h2.vis && h2 === cur);
+        if (h2.tick) h2.tick.classList.toggle("here", h2.vis && h2 === cur);
+      });
+      if (max > 0) {
+        ticks.style.display = "block";
+        heads.forEach(function (h2) {
+          if (!h2.vis) return;
+          var p = (h2.el.offsetTop / max) * 100;
+          if (h2.tick) h2.tick.style.left = Math.min(p, 100) + "%";
+        });
+      }
+    }
+    document.addEventListener("scroll", updateToc, { passive: true });
+    updateToc();
+  }
+
+  /* ---------------- back to top ---------------- */
+  var top = document.createElement("button");
+  top.type = "button";
+  top.className = "back-top";
+  top.setAttribute("aria-label", "Volver arriba / Back to top");
+  top.innerHTML = "↑";
+  document.body.appendChild(top);
+  function topVis() {
+    top.classList.toggle("show", document.documentElement.scrollTop > 600);
+  }
+  document.addEventListener("scroll", topVis, { passive: true });
+  top.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  topVis();
 })();
