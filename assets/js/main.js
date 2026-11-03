@@ -120,7 +120,7 @@
       lb.hidden = true;
       document.body.style.overflow = "";
     }
-    document.querySelectorAll(".lang-block .img-block img, .lang-block .plate-card > img").forEach(function (el) {
+    document.querySelectorAll(".lang-block .img-block img").forEach(function (el) {
       el.addEventListener("click", function () { openLB(el); });
     });
     lb.querySelector(".lb-close").addEventListener("click", closeLB);
@@ -421,4 +421,97 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   topVis();
+
+  /* ---------------- photographic annex: in-flow expansion band ----------------
+     One reusable band element, inserted below the clicked tile in the grid.
+     The FULL-BLEED wrapper (100vw) is never clipped: only the inner clay
+     "bleed" layer animates (max-height + opacity). Content (caption, museum
+     record, mentions) is cloned in from the tile. The band image hands off
+     to the lightbox for full size. */
+  var band = document.createElement("div");
+  band.className = "plate-band";
+  band.innerHTML =
+    '<div class="band-bleed"><div class="band-content">' +
+    '<button class="band-close" type="button" aria-label="Close">×</button>' +
+    '<figure class="band-fig"><img src="" alt=""></figure>' +
+    '<div class="band-info"></div></div></div>';
+  var bleed = band.querySelector(".band-bleed");
+  var bandImg = band.querySelector(".band-fig img");
+  var bandInfo = band.querySelector(".band-info");
+  var bandCard = null;      // currently open tile (null = closed)
+
+  function fillBand(card) {
+    var img = card.querySelector("img");
+    var cap = card.querySelector(".plate-cap");
+    var ficha = card.querySelector(".plate-ficha");
+    bandImg.src = img ? img.src : "";
+    bandInfo.innerHTML = "";
+    if (cap) {
+      var h = document.createElement("p");
+      h.className = "band-cap";
+      h.textContent = cap.textContent;
+      bandInfo.appendChild(h);
+    }
+    var hasRecord = false;
+    if (ficha) {
+      var body = ficha.querySelector(".ficha-body");
+      if (body) {
+        bandInfo.appendChild(body.cloneNode(true));
+        hasRecord = true;
+      }
+    }
+    if (!hasRecord) {
+      var none = document.createElement("p");
+      none.className = "band-none";
+      none.innerHTML =
+        '<span class="l-es">No hay ficha catalográfica disponible para esta pieza en el catálogo en línea de El Museo Canario.</span>' +
+        '<span class="l-en">No catalogue record is available for this piece in El Museo Canario\'s online catalogue.</span>';
+      bandInfo.appendChild(none);
+    }
+    band.classList.toggle("solo", !hasRecord);
+  }
+
+  function openBand(card) {
+    if (bandCard === card) { closeBand(); return; }   // same tile toggles shut
+    closeBand(true);                                   // move/restart elsewhere
+    bandCard = card;
+    fillBand(card);
+    card.parentNode.insertBefore(band, card.nextSibling);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { band.classList.add("open"); });
+    });
+    setTimeout(function () {
+      if (bandCard === card) band.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 280);
+  }
+  function closeBand(instant) {
+    if (!bandCard) return;
+    bandCard = null;
+    if (instant) {
+      if (band.parentNode) band.parentNode.removeChild(band);
+      return;
+    }
+    band.classList.remove("open");
+    setTimeout(function () {
+      if (!bandCard && band.parentNode) band.parentNode.removeChild(band);
+    }, 500);
+  }
+
+  band.querySelector(".band-close").addEventListener("click", function () { closeBand(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && bandCard && !(lb && lb.classList.contains("open"))) closeBand();
+  });
+  bandImg.addEventListener("click", function () {
+    if (lb) openLB(bandImg);   // full size, with prev/next through the plates
+  });
+
+  document.querySelectorAll(".plate-card").forEach(function (card) {
+    card.classList.add("clickable");
+    card.addEventListener("click", function (e) {
+      if (e.target.closest("a")) return;            // pills/links navigate
+      var reg = card.getAttribute("data-reg") || "";
+      if (/^\d+$/.test(reg)) openBand(card);        // inventory tiles: the band
+      else { var im = card.querySelector("img"); if (im && lb) openLB(im); }  // tech plates: lightbox
+    });
+  });
 })();
