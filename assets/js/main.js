@@ -286,19 +286,149 @@
     var tctx = toy.getContext("2d");
     var curImp = 1, curColor = "#A64B2A";
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = 900, H = 420;                    // logical workshop size
+    var mode = "slab";                        // slab | vessel
+    var frieze = false;                       // frieze band mode
+    var strokes = [];                         // every impression, for re-render
+    var fireGlow = 0;                         // firing animation state
+
+    // vessel geometry (logical coords): profile of a jar silhouette
+    function vesselProfile() {
+      var cx = W / 2;
+      return {
+        cx: cx, top: 60, bottom: H - 34, maxR: 300,
+        // radius as a function of y (0..1 of the body) — soft jar curve
+        r: function (yn) {
+          var t = Math.max(0, Math.min(1, yn));
+          return 90 + 210 * Math.sin(Math.PI * (0.12 + 0.76 * t)) * (1 - 0.35 * t * t);
+        }
+      };
+    }
+
     function sizeToy() {
       var w = toy.clientWidth || 900;
-      toy.width = w * dpr; toy.height = 420 * dpr;
-      tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      toy.width = w * dpr; toy.height = H * dpr;
+      toy.style.height = H + "px";
+      // scale logical -> device space, preserving proportions
+      tctx.setTransform(dpr * (w / W), 0, 0, dpr, 0, 0);
     }
+
+    function drawSurface() {
+      tctx.save();
+      tctx.setTransform(1, 0, 0, 1, 0, 0);
+      tctx.clearRect(0, 0, toy.width, toy.height);
+      tctx.restore();
+      var sc = (toy.clientWidth || 900) / W;
+      tctx.save();
+      tctx.scale(sc, 1);
+      // clay slab
+      if (mode === "slab") {
+        var g = tctx.createRadialGradient(W * 0.3, H * 0.25, 40, W * 0.45, H * 0.5, W * 0.75);
+        g.addColorStop(0, "#DDB77A"); g.addColorStop(0.55, "#C98F3D"); g.addColorStop(1, "#A96F33");
+        tctx.fillStyle = g;
+        tctx.beginPath();
+        var r = 26;
+        tctx.moveTo(r, 8);
+        tctx.arcTo(W - 8, 8, W - 8, H - 8, r);
+        tctx.arcTo(W - 8, H - 8, 8, H - 8, r);
+        tctx.arcTo(8, H - 8, 8, 8, r);
+        tctx.arcTo(8, 8, W - 8, 8, r);
+        tctx.fill();
+        // slab edge shadow for depth
+        tctx.strokeStyle = "rgba(70,40,15,.35)";
+        tctx.lineWidth = 6; tctx.stroke();
+        tctx.fillStyle = "rgba(60,32,10,.18)";
+        tctx.fillRect(14, H - 26, W - 28, 10);
+      } else {
+        // vessel: jar silhouette, shaded to look round
+        var v = vesselProfile();
+        tctx.beginPath();
+        tctx.moveTo(v.cx - v.r(0), v.top);
+        for (var yy = v.top; yy <= v.bottom; yy += 6) {
+          tctx.lineTo(v.cx - v.r((yy - v.top) / (v.bottom - v.top)), yy);
+        }
+        for (var yy2 = v.bottom; yy2 >= v.top; yy2 -= 6) {
+          tctx.lineTo(v.cx + v.r((yy2 - v.top) / (v.bottom - v.top)), yy2);
+        }
+        tctx.closePath();
+        var vg = tctx.createLinearGradient(v.cx - v.maxR, 0, v.cx + v.maxR, 0);
+        vg.addColorStop(0, "#9C6626"); vg.addColorStop(0.3, "#D3A054");
+        vg.addColorStop(0.55, "#C98F3D"); vg.addColorStop(0.85, "#8F5C20"); vg.addColorStop(1, "#6E4416");
+        tctx.fillStyle = vg;
+        tctx.shadowColor = "rgba(40,20,5,.45)"; tctx.shadowBlur = 24; tctx.shadowOffsetY = 10;
+        tctx.fill();
+        tctx.shadowColor = "transparent";
+        // rim + neck highlight
+        tctx.strokeStyle = "rgba(255,230,180,.35)";
+        tctx.lineWidth = 3;
+        tctx.beginPath();
+        tctx.ellipse(v.cx, v.top + 8, v.r(0) * 0.96, 12, 0, 0, Math.PI * 2);
+        tctx.stroke();
+      }
+      tctx.restore();
+    }
+
+    // ---- relief stamping: colour pass + shadow pass + highlight pass ----
+    function stampImp(ctx, n, x, y, size, rot, color, alpha, depth) {
+      var t = tinted(n, color);
+      if (!t) return;
+      ctx.save();
+      ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha;
+      // 1) carved shadow (offset down-right, darkened clay) — only for relief
+      var d = depth || 0.5;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.5 * d;
+      ctx.filter = "brightness(0.35)";
+      ctx.drawImage(t, -size / 2 + size * 0.045 * d, -size / 2 + size * 0.05 * d, size, size);
+      ctx.restore();
+      // 2) pigment impression itself
+      ctx.drawImage(t, -size / 2, -size / 2, size, size);
+      // 3) raised catch-light on the upper edge (only when pressed deep)
+      if (d > 0.55) {
+        ctx.save();
+        ctx.globalAlpha = (d - 0.55) * 0.9;
+        ctx.filter = "brightness(1.9) blur(1px)";
+        ctx.drawImage(t, -size / 2 - size * 0.02, -size / 2 - size * 0.028, size, size);
+        ctx.restore();
+      }
+      ctx.restore();
+      // 4) clay crumbs scattered around a deep press
+      if (d > 0.6) {
+        ctx.save();
+        ctx.fillStyle = "rgba(122,84,36,.8)";
+        for (var i = 0; i < 7; i++) {
+          var a = Math.random() * Math.PI * 2, rr = size * (0.55 + Math.random() * 0.22);
+          ctx.beginPath();
+          ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 1 + Math.random() * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    function reRender() {
+      drawSurface();
+      var sc = (toy.clientWidth || 900) / W;
+      tctx.save();
+      tctx.scale(sc, 1);
+      strokes.forEach(function (s) { stampImp(tctx, s.n, s.x, s.y, s.size, s.rot, s.color, s.alpha, s.depth); });
+      if (fireGlow > 0) {
+        tctx.save();
+        tctx.globalAlpha = Math.min(1, fireGlow);
+        tctx.fillStyle = "rgba(255,120,30," + (0.25 * fireGlow) + ")";
+        tctx.fillRect(0, 0, W, H);
+        tctx.restore();
+      }
+      tctx.restore();
+    }
+
     Promise.all(imgLoads).then(function () {
       sizeToy();
-      window.addEventListener("resize", sizeToy);
+      window.addEventListener("resize", function () { sizeToy(); reRender(); });
       var firstBtn = document.querySelector("#motif-picker .tool");
       if (firstBtn) firstBtn.classList.add("active");
+      reRender();
     });
-    var dragging = false, lastStamp = 0;
-    var lastClick = 0;
 
     document.querySelectorAll("#motif-picker .tool").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -314,28 +444,125 @@
         curColor = b.getAttribute("data-color");
       });
     });
+    // surface mode toggle
+    var slabBtn = document.getElementById("mode-slab");
+    var vesselBtn = document.getElementById("mode-vessel");
+    function setMode(m) {
+      mode = m;
+      slabBtn.classList.toggle("active", m === "slab");
+      vesselBtn.classList.toggle("active", m === "vessel");
+      slabBtn.setAttribute("aria-pressed", m === "slab");
+      vesselBtn.setAttribute("aria-pressed", m === "vessel");
+      strokes = [];
+      reRender();
+    }
+    if (slabBtn) slabBtn.addEventListener("click", function () { setMode("slab"); });
+    if (vesselBtn) vesselBtn.addEventListener("click", function () { setMode("vessel"); });
+    // frieze toggle
+    var friezeBtn = document.getElementById("frieze-toggle");
+    if (friezeBtn) friezeBtn.addEventListener("click", function () {
+      frieze = !frieze;
+      friezeBtn.classList.toggle("active", frieze);
+      friezeBtn.setAttribute("aria-pressed", String(frieze));
+    });
     var clearBtn = document.getElementById("clear-canvas");
     if (clearBtn) clearBtn.addEventListener("click", function () {
-      tctx.setTransform(1, 0, 0, 1, 0, 0);
-      tctx.clearRect(0, 0, toy.width, toy.height);
-      tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      strokes = []; fireGlow = 0; reRender();
     });
 
-    function doStamp(e) {
-      var rect = toy.getBoundingClientRect();
-      var x = (e.clientX - rect.left) * (toy.width / dpr / rect.width);
-      var y = (e.clientY - rect.top) * (toy.height / dpr / rect.height);
-      var now = performance.now();
-      if (now - lastClick < 120) return;   // debounce double-taps
-      lastClick = now;
-      stampImp(tctx, curImp, x, y, 88 + Math.random() * 30, (Math.random() - 0.5) * 0.55, curColor, 0.85);
+    // ---- fire & share: kiln animation, then a downloadable museum card ----
+    var fireBtn = document.getElementById("fire-btn");
+    if (fireBtn) fireBtn.addEventListener("click", function () {
+      if (!strokes.length) return;
+      fireBtn.disabled = true;
+      var t0 = performance.now();
+      (function glow() {
+        var k = (performance.now() - t0) / 1600;
+        fireGlow = k < 1 ? Math.sin(k * Math.PI) : 0;
+        reRender();
+        if (k < 1) requestAnimationFrame(glow);
+        else { fireGlow = 0; fireBtn.disabled = false; makeCard(); }
+      })();
+    });
+
+    function makeCard() {
+      var off = document.createElement("canvas");
+      off.width = 1000; off.height = 700;
+      var c = off.getContext("2d");
+      // parchment card
+      c.fillStyle = "#F3EBDA"; c.fillRect(0, 0, 1000, 700);
+      c.strokeStyle = "#A64B2A"; c.lineWidth = 10; c.strokeRect(28, 28, 944, 644);
+      c.strokeStyle = "rgba(166,75,42,.45)"; c.lineWidth = 3; c.strokeRect(48, 48, 904, 604);
+      // the artwork (clay slab with impressions, cropped)
+      c.drawImage(toy, 90, 90, 820, 420);
+      // caption
+      c.fillStyle = "#5A2F14";
+      c.font = "italic 30px Georgia, serif"; c.textAlign = "center";
+      var d = new Date();
+      var es = "Pintadera estampada en el taller digital · " + d.toLocaleDateString("es-ES");
+      var en = "Pintadera stamped in the digital workshop · " + d.toLocaleDateString("en-GB");
+      var body = document.body;
+      c.fillText(body.classList.contains("lang-es") ? es : en, 500, 570);
+      c.font = "22px Georgia, serif"; c.fillStyle = "#8A6A45";
+      c.fillText("tras Pintaderas de El Museo Canario (2013) · after Pintaderas of El Museo Canario", 500, 615);
+      var a = document.createElement("a");
+      a.download = "pintadera-workshop.png";
+      a.href = off.toDataURL("image/png");
+      a.click();
     }
-    // single press per click — no drag stamping
+
+    // ---- pointer: pressure via hold time; frieze stamps a full band ----
+    var lastClick = 0, pressTimer = null, pressDepth = 0.5;
+    function logicalXY(e) {
+      var rect = toy.getBoundingClientRect();
+      var sc = (toy.clientWidth || 900) / W;
+      return { x: (e.clientX - rect.left) / sc, y: (e.clientY - rect.top) / sc };
+    }
+    function inClay(p) {
+      if (mode === "slab") return p.x > 14 && p.x < W - 14 && p.y > 14 && p.y < H - 14;
+      var v = vesselProfile();
+      if (p.y < v.top || p.y > v.bottom) return false;
+      var yn = (p.y - v.top) / (v.bottom - v.top);
+      return Math.abs(p.x - v.cx) < v.r(yn) - 8;
+    }
+    function oneStamp(p, depth) {
+      var size = 88 + Math.random() * 30 + depth * 26;
+      var rot = (Math.random() - 0.5) * 0.55;
+      strokes.push({ n: curImp, x: p.x, y: p.y, size: size, rot: rot, color: curColor, alpha: 0.72 + depth * 0.2, depth: depth });
+      reRender();
+    }
+    function friezeBand(p) {
+      // a rhythmic horizontal band of the chosen motif across the clay
+      var size = 92, gap = size * 0.62, y = Math.max(70, Math.min(H - 70, p.y));
+      var n = Math.floor((W - 140) / gap);
+      for (var i = 0; i < n; i++) {
+        var x = 90 + gap * i + gap / 2;
+        strokes.push({ n: curImp, x: x, y: y + (Math.random() - 0.5) * 3, size: size,
+                       rot: (Math.random() - 0.5) * 0.06, color: curColor, alpha: 0.8, depth: 0.6 });
+      }
+      reRender();
+    }
     toy.addEventListener("pointerdown", function (e) {
-      doStamp(e);
+      e.preventDefault();
+      var now = performance.now();
+      if (now - lastClick < 120) return;
+      lastClick = now;
+      var p = logicalXY(e);
+      if (!inClay(p)) return;
+      if (frieze) { friezeBand(p); return; }
+      pressDepth = 0.5;
+      oneStamp(p, pressDepth);
+      // hold = deeper press (capped)
+      var p0 = p;
+      pressTimer = setInterval(function () {
+        pressDepth = Math.min(1, pressDepth + 0.12);
+        oneStamp(p0, pressDepth);
+      }, 260);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
+      toy.addEventListener(ev, function () { if (pressTimer) { clearInterval(pressTimer); pressTimer = null; } });
     });
     toy.addEventListener("pointermove", function (e) {
-      // suppress any drag behaviour
       if (e.buttons !== 0) e.preventDefault();
     });
   }
@@ -343,10 +570,12 @@
   /* ---------------- hero stamp: random from the set, slow rotation ---------------- */
   if (heroStamp) {
     var VER = window.ASSET_VER || "v=31";
-    var lastN = parseInt((heroStamp.src.match(/stamp(\d+)/) || [0, 17])[1], 10);
+    var HERO_EXCLUDE = [14, 19];   // 3148, 3052 — user-requested exclusions
+    var lastN = parseInt((heroStamp.src.match(/stamp(\d+)/) || [0, 23])[1], 10);
     function randStamp() {
       var n = lastN;
-      while (n === lastN) n = 1 + Math.floor(Math.random() * 25);
+      do { n = 1 + Math.floor(Math.random() * 25); }
+      while (n === lastN || HERO_EXCLUDE.indexOf(n) !== -1);
       return n;
     }
     function swap() {
@@ -358,7 +587,7 @@
       }, 450);
     }
     heroStamp.style.transition = "opacity .45s ease";
-    setInterval(swap, 7000);
+    setInterval(swap, 10000);
   }
 
   /* ---------------- section jump menu: scrollspy + progress ticks ---------------- */
