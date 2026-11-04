@@ -13,3 +13,4 @@ exclude:
   - Gemfile.lock
   - vendor
   - build_notes
+  - tools

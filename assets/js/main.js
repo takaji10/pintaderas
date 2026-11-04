@@ -159,14 +159,14 @@
   }
 
   /* ---------------- stamp impression images ---------------- */
-  var IMP_N = 25;
+  var IMP_N = 35;
   var IMGS = [];
   var imgLoads = [];
   for (var ii = 1; ii <= IMP_N; ii++) {
     (function (n) {
       var im = new Image();
       imgLoads.push(new Promise(function (res) { im.onload = res; im.onerror = res; }));
-      im.src = "assets/stamps/stamp" + n + ".png?" + (window.ASSET_VER || "v=31");
+      im.src = "assets/stamps/stamp" + n + ".png?" + (window.ASSET_VER || "v=63");
       IMGS[n] = im;
     })(ii);
   }
@@ -287,30 +287,18 @@
     var curImp = 1, curColor = "#A64B2A";
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var W = 900, H = 420;                    // logical workshop size
-    var mode = "slab";                        // slab | vessel
     var frieze = false;                       // frieze band mode
     var strokes = [];                         // every impression, for re-render
     var fireGlow = 0;                         // firing animation state
 
-    // vessel geometry (logical coords): profile of a jar silhouette
-    function vesselProfile() {
-      var cx = W / 2;
-      return {
-        cx: cx, top: 60, bottom: H - 34, maxR: 300,
-        // radius as a function of y (0..1 of the body) — soft jar curve
-        r: function (yn) {
-          var t = Math.max(0, Math.min(1, yn));
-          return 90 + 210 * Math.sin(Math.PI * (0.12 + 0.76 * t)) * (1 - 0.35 * t * t);
-        }
-      };
-    }
-
     function sizeToy() {
       var w = toy.clientWidth || 900;
-      toy.width = w * dpr; toy.height = H * dpr;
-      toy.style.height = H + "px";
-      // scale logical -> device space, preserving proportions
-      tctx.setTransform(dpr * (w / W), 0, 0, dpr, 0, 0);
+      var h = Math.round(w * H / W);          // keep the slab's aspect on any width
+      toy.width = Math.round(w * dpr); toy.height = Math.round(h * dpr);
+      toy.style.height = h + "px";
+      // uniform logical -> device scale (fixes the squashed mobile slab)
+      var s = dpr * (w / W);
+      tctx.setTransform(s, 0, 0, s, 0, 0);
     }
 
     function drawSurface() {
@@ -318,54 +306,21 @@
       tctx.setTransform(1, 0, 0, 1, 0, 0);
       tctx.clearRect(0, 0, toy.width, toy.height);
       tctx.restore();
-      var sc = (toy.clientWidth || 900) / W;
-      tctx.save();
-      tctx.scale(sc, 1);
-      // clay slab
-      if (mode === "slab") {
-        var g = tctx.createRadialGradient(W * 0.3, H * 0.25, 40, W * 0.45, H * 0.5, W * 0.75);
-        g.addColorStop(0, "#DDB77A"); g.addColorStop(0.55, "#C98F3D"); g.addColorStop(1, "#A96F33");
-        tctx.fillStyle = g;
-        tctx.beginPath();
-        var r = 26;
-        tctx.moveTo(r, 8);
-        tctx.arcTo(W - 8, 8, W - 8, H - 8, r);
-        tctx.arcTo(W - 8, H - 8, 8, H - 8, r);
-        tctx.arcTo(8, H - 8, 8, 8, r);
-        tctx.arcTo(8, 8, W - 8, 8, r);
-        tctx.fill();
-        // slab edge shadow for depth
-        tctx.strokeStyle = "rgba(70,40,15,.35)";
-        tctx.lineWidth = 6; tctx.stroke();
-        tctx.fillStyle = "rgba(60,32,10,.18)";
-        tctx.fillRect(14, H - 26, W - 28, 10);
-      } else {
-        // vessel: jar silhouette, shaded to look round
-        var v = vesselProfile();
-        tctx.beginPath();
-        tctx.moveTo(v.cx - v.r(0), v.top);
-        for (var yy = v.top; yy <= v.bottom; yy += 6) {
-          tctx.lineTo(v.cx - v.r((yy - v.top) / (v.bottom - v.top)), yy);
-        }
-        for (var yy2 = v.bottom; yy2 >= v.top; yy2 -= 6) {
-          tctx.lineTo(v.cx + v.r((yy2 - v.top) / (v.bottom - v.top)), yy2);
-        }
-        tctx.closePath();
-        var vg = tctx.createLinearGradient(v.cx - v.maxR, 0, v.cx + v.maxR, 0);
-        vg.addColorStop(0, "#9C6626"); vg.addColorStop(0.3, "#D3A054");
-        vg.addColorStop(0.55, "#C98F3D"); vg.addColorStop(0.85, "#8F5C20"); vg.addColorStop(1, "#6E4416");
-        tctx.fillStyle = vg;
-        tctx.shadowColor = "rgba(40,20,5,.45)"; tctx.shadowBlur = 24; tctx.shadowOffsetY = 10;
-        tctx.fill();
-        tctx.shadowColor = "transparent";
-        // rim + neck highlight
-        tctx.strokeStyle = "rgba(255,230,180,.35)";
-        tctx.lineWidth = 3;
-        tctx.beginPath();
-        tctx.ellipse(v.cx, v.top + 8, v.r(0) * 0.96, 12, 0, 0, Math.PI * 2);
-        tctx.stroke();
-      }
-      tctx.restore();
+      // clay slab (logical coords; the sizeToy transform handles all scaling)
+      var g = tctx.createRadialGradient(W * 0.3, H * 0.25, 40, W * 0.45, H * 0.5, W * 0.75);
+      g.addColorStop(0, "#DDB77A"); g.addColorStop(0.55, "#C98F3D"); g.addColorStop(1, "#A96F33");
+      tctx.fillStyle = g;
+      tctx.beginPath();
+      var r = 26;
+      tctx.moveTo(r, 8);
+      tctx.arcTo(W - 8, 8, W - 8, H - 8, r);
+      tctx.arcTo(W - 8, H - 8, 8, H - 8, r);
+      tctx.arcTo(8, H - 8, 8, 8, r);
+      tctx.arcTo(8, 8, W - 8, 8, r);
+      tctx.fill();
+      // rounded-edge shadow for depth
+      tctx.strokeStyle = "rgba(70,40,15,.35)";
+      tctx.lineWidth = 6; tctx.stroke();
     }
 
     // ---- relief stamping: colour pass + shadow pass + highlight pass ----
@@ -408,9 +363,6 @@
 
     function reRender() {
       drawSurface();
-      var sc = (toy.clientWidth || 900) / W;
-      tctx.save();
-      tctx.scale(sc, 1);
       strokes.forEach(function (s) { stampImp(tctx, s.n, s.x, s.y, s.size, s.rot, s.color, s.alpha, s.depth); });
       if (fireGlow > 0) {
         tctx.save();
@@ -419,7 +371,6 @@
         tctx.fillRect(0, 0, W, H);
         tctx.restore();
       }
-      tctx.restore();
     }
 
     Promise.all(imgLoads).then(function () {
@@ -444,20 +395,6 @@
         curColor = b.getAttribute("data-color");
       });
     });
-    // surface mode toggle
-    var slabBtn = document.getElementById("mode-slab");
-    var vesselBtn = document.getElementById("mode-vessel");
-    function setMode(m) {
-      mode = m;
-      slabBtn.classList.toggle("active", m === "slab");
-      vesselBtn.classList.toggle("active", m === "vessel");
-      slabBtn.setAttribute("aria-pressed", m === "slab");
-      vesselBtn.setAttribute("aria-pressed", m === "vessel");
-      strokes = [];
-      reRender();
-    }
-    if (slabBtn) slabBtn.addEventListener("click", function () { setMode("slab"); });
-    if (vesselBtn) vesselBtn.addEventListener("click", function () { setMode("vessel"); });
     // frieze toggle
     var friezeBtn = document.getElementById("frieze-toggle");
     if (friezeBtn) friezeBtn.addEventListener("click", function () {
@@ -493,8 +430,10 @@
       c.fillStyle = "#F3EBDA"; c.fillRect(0, 0, 1000, 700);
       c.strokeStyle = "#A64B2A"; c.lineWidth = 10; c.strokeRect(28, 28, 944, 644);
       c.strokeStyle = "rgba(166,75,42,.45)"; c.lineWidth = 3; c.strokeRect(48, 48, 904, 604);
-      // the artwork (clay slab with impressions, cropped)
-      c.drawImage(toy, 90, 90, 820, 420);
+      // the artwork (clay slab with impressions, fitted)
+      var s = Math.min(820 / toy.width, 420 / toy.height);
+      var dw = toy.width * s, dh = toy.height * s;
+      c.drawImage(toy, 90 + (820 - dw) / 2, 90 + (420 - dh) / 2, dw, dh);
       // caption
       c.fillStyle = "#5A2F14";
       c.font = "italic 30px Georgia, serif"; c.textAlign = "center";
@@ -519,11 +458,7 @@
       return { x: (e.clientX - rect.left) / sc, y: (e.clientY - rect.top) / sc };
     }
     function inClay(p) {
-      if (mode === "slab") return p.x > 14 && p.x < W - 14 && p.y > 14 && p.y < H - 14;
-      var v = vesselProfile();
-      if (p.y < v.top || p.y > v.bottom) return false;
-      var yn = (p.y - v.top) / (v.bottom - v.top);
-      return Math.abs(p.x - v.cx) < v.r(yn) - 8;
+      return p.x > 14 && p.x < W - 14 && p.y > 14 && p.y < H - 14;
     }
     function oneStamp(p, depth) {
       var size = 88 + Math.random() * 30 + depth * 26;
@@ -569,12 +504,12 @@
 
   /* ---------------- hero stamp: random from the set, slow rotation ---------------- */
   if (heroStamp) {
-    var VER = window.ASSET_VER || "v=31";
-    var HERO_EXCLUDE = [14, 19];   // 3148, 3052 — user-requested exclusions
+    var VER = window.ASSET_VER || "v=63";
+    var HERO_EXCLUDE = [];   // final curated set — nothing excluded from the hero
     var lastN = parseInt((heroStamp.src.match(/stamp(\d+)/) || [0, 23])[1], 10);
     function randStamp() {
       var n = lastN;
-      do { n = 1 + Math.floor(Math.random() * 25); }
+      do { n = 1 + Math.floor(Math.random() * 35); }
       while (n === lastN || HERO_EXCLUDE.indexOf(n) !== -1);
       return n;
     }
@@ -609,17 +544,66 @@
       h.tick = t;
     });
     bar.parentNode.appendChild(ticks);
+
+    /* fixed sidebar navigation (wide screens): mirrors the toc links */
+    var sidebar = document.createElement("nav");
+    sidebar.className = "section-sidebar";
+    sidebar.setAttribute("aria-label", "Section navigation");
+    heads.forEach(function (h) {
+      var a = document.createElement("a");
+      a.href = h.link.getAttribute("href");
+      a.innerHTML = h.link.innerHTML;   // keeps the l-es / l-en spans
+      h.sideLink = a;
+      sidebar.appendChild(a);
+    });
+    document.body.appendChild(sidebar);
+
+    /* ghost stamp in each section bar (like the homepage cards) —
+       deterministic per section id, injected in both languages */
+    document.querySelectorAll('.prose h2[id^="sec-"]').forEach(function (h) {
+      if (h.querySelector(".sec-stamp")) return;
+      var id = h.id || "";
+      var hash = 0;
+      for (var i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+      var img = document.createElement("img");
+      img.className = "sec-stamp";
+      img.src = "assets/stamps/stamp" + (1 + (hash % 35)) + "_sand.png?" +
+        (window.ASSET_VER || "v=66");
+      img.alt = "";
+      img.setAttribute("aria-hidden", "true");
+      img.style.transform = "translateY(-50%) rotate(" + ((hash % 9) - 4) + "deg)";
+      h.appendChild(img);
+      var span = document.createElement("span");
+      span.className = "sec-title";
+      while (h.firstChild !== img) span.appendChild(h.firstChild);
+      h.insertBefore(span, img);
+    });
+
+    /* reading indicator: fixed chip showing current section + percent */
+    var chip = document.createElement("div");
+    chip.className = "reading-chip";
+    chip.innerHTML = '<span class="rc-pct"></span><span class="rc-sec"></span>';
+    document.body.appendChild(chip);
+    var chipPct = chip.querySelector(".rc-pct"), chipSec = chip.querySelector(".rc-sec");
     function updateToc() {
       var h = document.documentElement;
       var max = h.scrollHeight - h.clientHeight;
       var y = h.scrollTop + 120;
+      var pct = max > 0 ? Math.round((h.scrollTop / max) * 100) : 0;
+      chipPct.textContent = pct + "%";
       var cur = null;
       heads.forEach(function (h2) {
         h2.vis = h2.block.offsetWidth > 0;
         if (h2.vis && h2.el.offsetTop <= y) cur = h2;
       });
+      chipSec.textContent = cur ? cur.link.textContent.trim() : "";
+      chip.classList.toggle("bare", !cur);
       heads.forEach(function (h2) {
         h2.link.classList.toggle("here", h2.vis && h2 === cur);
+        if (h2.sideLink) {
+          h2.sideLink.classList.toggle("here", h2.vis && h2 === cur);
+          h2.sideLink.style.display = h2.vis ? "" : "none";
+        }
         if (h2.tick) h2.tick.classList.toggle("here", h2.vis && h2 === cur);
       });
       if (max > 0) {
@@ -633,6 +617,9 @@
     }
     document.addEventListener("scroll", updateToc, { passive: true });
     updateToc();
+    /* keep the chip's section name in the active language */
+    if (btnES) btnES.addEventListener("click", updateToc);
+    if (btnEN) btnEN.addEventListener("click", updateToc);
   }
 
   /* ---------------- back to top ---------------- */
