@@ -257,8 +257,19 @@ body.nav-locked { overflow: hidden; }
 }
 #motif-picker {
   width: 100%;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(2.65rem, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
   gap: .45rem;
+}
+/* every stamp box is a perfect square; the impression fills it */
+#motif-picker .tool {
+  aspect-ratio: 1 / 1;
+  padding: .3rem;
+  display: flex; align-items: center; justify-content: center;
+}
+#motif-picker .tool img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  max-width: none; max-height: none;
 }
 .workshop-controls-row {
   display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: center;
@@ -319,39 +330,48 @@ button:focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
 }
 /* full-width stylised section bars: visual breaks in long text */
 .prose h2[id^="sec-"] {
-  display: flex; align-items: center; justify-content: center; gap: 1.1rem;
+  display: flex; align-items: center; justify-content: flex-start;
   width: 100vw;
   margin: 3.2rem calc(50% - 50vw) 1.8rem;
-  padding: 1.55rem 1.2rem 1.5rem;
-  background: linear-gradient(180deg, var(--paper-dark), var(--paper));
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  box-shadow: inset 0 6px 0 var(--clay), inset 0 7px 0 rgba(92, 39, 21, .25),
-    inset 0 -1px 0 rgba(166, 75, 42, .12);
-  text-align: center;
+  /* title column matches the body text column, a touch to its left
+     (50vw, not 50%: the h2 is full-bleed, its containing block is narrow) */
+  padding: 4.1rem 1.4rem 4rem max(1.2rem, calc(50vw - 23.7rem));
+  background: linear-gradient(180deg, var(--clay-dark), var(--clay) 55%, #b45a30);
+  border-top: 1px solid rgba(255, 255, 255, .18);
+  border-bottom: 3px solid var(--clay-deep);
+  box-shadow: inset 0 6px 0 rgba(255, 255, 255, .07), 0 2px 10px rgba(92, 39, 21, .25);
+  text-align: left;
+  color: #fff;
   font-size: clamp(1.05rem, 2.6vw, 1.3rem);
-  line-height: 1.3;
-  letter-spacing: .12em;
+  line-height: 1.35;
+  letter-spacing: .04em;
   scroll-margin-top: 4.5rem;
   position: relative; overflow: hidden;
+  z-index: 46;   /* above the sidebar: bars always paint over it */
+  text-transform: none;
 }
 .prose h2[id^="sec-"] .sec-title { position: relative; z-index: 1; }
 .prose h2[id^="sec-"]::before,
-.prose h2[id^="sec-"]::after {
-  content: ""; flex: 0 1 4.2rem; height: 2px;
-  position: relative; z-index: 1;
-  background: linear-gradient(90deg, transparent, var(--clay) 75%);
-}
-.prose h2[id^="sec-"]::after {
-  background: linear-gradient(90deg, var(--clay) 25%, transparent);
-}
+.prose h2[id^="sec-"]::after { content: none; }
 /* ghost stamp offset in the bar background, like the homepage cards */
 .prose h2[id^="sec-"] .sec-stamp {
-  position: absolute; right: -3.2rem; top: 50%;
-  width: 9.5rem; max-width: none; height: auto; opacity: .13;
+  position: absolute; right: -3rem; top: 50%;
+  width: 19rem; max-width: none; height: auto; opacity: .22;
+  filter: brightness(0) invert(1);   /* white ghost impression */
   pointer-events: none;
 }
 .prose h3 { font-family: var(--serif); color: var(--umber); font-size: 1.25rem; margin: 2rem 0 .7rem; }
+/* drop cap opening the first paragraph after a section bar */
+.prose h2[id^="sec-"] + p::first-letter,
+.prose h2[id^="sec-"] + .img-block + p::first-letter {
+  float: left;
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 3.1em;
+  line-height: .82;
+  padding: .06em .12em 0 0;
+  color: var(--clay-deep);
+}
 .prose p { margin: 0 0 1.05rem; }
 .prose blockquote {
   margin: 1.4rem 0; padding: .8rem 1.2rem; border-left: 4px solid var(--ochre);
@@ -546,8 +566,14 @@ li.fn-note { margin: .45rem 0; }
 
 /* fixed sidebar section navigation (wide screens only) */
 .section-sidebar {
-  position: fixed; left: .9rem; top: 5.6rem; z-index: 60;
-  width: 11.6rem; max-height: calc(100vh - 8rem); overflow-y: auto;
+  position: fixed;
+  /* right edge flush against the left side of the centred content column:
+     content half-width (23rem) + sidebar (11.6rem) + .9rem gap */
+  left: max(.9rem, calc(50% - 35.5rem));
+  /* vertically centred in the viewport (top set by main.js guard) */
+  top: 50%; z-index: 45;   /* below the sticky header (50) and the section bars (46) */
+  width: 11.6rem; max-height: calc(100vh - 10rem); overflow-y: auto;
+  transform: translateY(-50%);
   display: none; flex-direction: column;
   font-family: var(--sans); font-size: .74rem; line-height: 1.35;
 }
@@ -566,6 +592,15 @@ li.fn-note { margin: .45rem 0; }
   color: var(--clay-deep); border-left-color: var(--clay); font-weight: 600;
   background: rgba(166, 75, 42, .06);
 }
+
+/* footnote navigation: jump targets clear the sticky header; back arrow */
+.fn-note { scroll-margin-top: 5.5rem; }
+a.fnref { scroll-margin-top: 6.5rem; }
+.fn-back {
+  margin-left: .45rem; color: var(--clay); text-decoration: none;
+  font-size: .9em; vertical-align: baseline;
+}
+.fn-back:hover { color: var(--clay-deep); text-decoration: underline; }
 
 /* reading indicator: current section + percent (text pages) */
 .reading-chip {
@@ -708,7 +743,9 @@ li.fn-note { margin: .45rem 0; }
 .mention-pill:hover { background: var(--clay); border-color: var(--clay); color: #fff; }
 
 /* exact-spot mention anchors in the text */
-.reg-mention { display: block; height: 0; scroll-margin-top: 5rem; }
+/* zero-size inline anchor: must NOT be display:block or it breaks the line
+   flow around the registration numbers it precedes */
+.reg-mention { display: inline; scroll-margin-top: 5rem; }
 
 /* about page */
 .about-hero {
@@ -755,10 +792,8 @@ li.fn-note { margin: .45rem 0; }
   .back-top { right: .9rem; bottom: .9rem; width: 2.6rem; height: 2.6rem; }
   .page-toc { padding-top: .9rem; }
   .reading-chip { left: .6rem; bottom: .6rem; right: auto; max-width: 56vw; font-size: .66rem; }
-  .prose h2[id^="sec-"] { gap: .7rem; padding: 1.25rem .9rem 1.2rem; letter-spacing: .07em; text-align: left; padding-left: 1.4rem; }
-  .prose h2[id^="sec-"]::before,
-  .prose h2[id^="sec-"]::after { flex-basis: 2.2rem; }
-  .prose h2[id^="sec-"] .sec-stamp { width: 6.5rem; right: -2rem; opacity: .11; }
+  .prose h2[id^="sec-"] { padding: 2.5rem 1rem 2.4rem 1.2rem; letter-spacing: .05em; }
+  .prose h2[id^="sec-"] .sec-stamp { width: 13rem; right: -2.2rem; opacity: .18; }
 }
 
 /* bleed figures touch the viewport edge exactly; clip any sub-pixel drift */

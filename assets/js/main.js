@@ -177,6 +177,32 @@
   document.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
+  /* ---------------- footnote navigation: jump + back arrows ---------------- */
+  var noteBacks = {};   // note id -> the back arrow appended to that note
+  document.querySelectorAll("a.fnref").forEach(function (ref) {
+    var href = ref.getAttribute("href") || "";
+    if (href.charAt(0) !== "#") return;
+    var note = document.getElementById(href.slice(1));
+    if (!note) return;
+    var back = noteBacks[href.slice(1)];
+    if (!back) {
+      back = document.createElement("a");
+      back.className = "fn-back";
+      back.href = ref.id ? "#" + ref.id : "#";
+      back.textContent = "↩";
+      back.setAttribute("aria-label", "Volver al texto / Back to the text");
+      back.addEventListener("click", function (e) {
+        e.preventDefault();
+        var t = back.__target || ref;
+        t.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      note.appendChild(back);
+      noteBacks[href.slice(1)] = back;
+    }
+    /* last reference clicked wins: the arrow returns to the spot you came from */
+    ref.addEventListener("click", function () { back.__target = ref; });
+  });
+
   /* ---------------- reveal on scroll ---------------- */
   if ("IntersectionObserver" in window) {
     var io = new IntersectionObserver(function (entries) {
@@ -476,14 +502,21 @@
         ctx.restore();
       }
       ctx.restore();
-      // 4) clay crumbs scattered around a deep press
+      // 4) clay crumbs scattered around a deep press — deterministic per
+      //    stroke, so re-renders never re-scatter crumbs on old stamps
       if (d > 0.6) {
         ctx.save();
         ctx.fillStyle = "rgba(122,84,36,.8)";
+        // small PRNG seeded from the stroke's position — stable across frames
+        var seed = Math.floor(x * 73856093) ^ Math.floor(y * 19349663);
+        function rnd() {
+          seed = (seed * 1664525 + 1013904223) >>> 0;
+          return seed / 4294967296;
+        }
         for (var i = 0; i < 7; i++) {
-          var a = Math.random() * Math.PI * 2, rr = size * (0.55 + Math.random() * 0.22);
+          var a = rnd() * Math.PI * 2, rr = size * (0.55 + rnd() * 0.22);
           ctx.beginPath();
-          ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 1 + Math.random() * 1.8, 0, Math.PI * 2);
+          ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 1 + rnd() * 1.8, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
@@ -580,7 +613,7 @@
     }
 
     // ---- pointer: pressure via hold time; frieze stamps a full band ----
-    var lastClick = 0, pressTimer = null, pressDepth = 0.5;
+    var lastClick = 0, pressTimer = null, pressDepth = 0.5, pressRot = 0;
     function logicalXY(e) {
       var rect = toy.getBoundingClientRect();
       var sc = (toy.clientWidth || 900) / W;
@@ -589,20 +622,22 @@
     function inClay(p) {
       return p.x > 14 && p.x < W - 14 && p.y > 14 && p.y < H - 14;
     }
-    function oneStamp(p, depth) {
-      var size = 88 + Math.random() * 30 + depth * 26;
-      var rot = (Math.random() - 0.5) * 0.55;
+    function oneStamp(p, depth, rotOverride) {
+      var size = 88 + Math.random() * 30;
+      var rot = rotOverride != null ? rotOverride : (Math.random() - 0.5) * 0.55;
       strokes.push({ n: curImp, x: p.x, y: p.y, size: size, rot: rot, color: curColor, alpha: 0.72 + depth * 0.2, depth: depth });
       reRender();
     }
     function friezeBand(p) {
-      // a rhythmic horizontal band of the chosen motif across the clay
-      var size = 92, gap = size * 0.62, y = Math.max(70, Math.min(H - 70, p.y));
-      var n = Math.floor((W - 140) / gap);
+      // a rhythmic band of the chosen motif: even stamps upright, odd ones
+      // rotated 180°, spaced so impressions sit side by side without overlapping
+      var size = 92, step = size * 1.02, y = Math.max(70, Math.min(H - 70, p.y));
+      var n = Math.floor((W - 140) / step);
       for (var i = 0; i < n; i++) {
-        var x = 90 + gap * i + gap / 2;
-        strokes.push({ n: curImp, x: x, y: y + (Math.random() - 0.5) * 3, size: size,
-                       rot: (Math.random() - 0.5) * 0.06, color: curColor, alpha: 0.8, depth: 0.6 });
+        strokes.push({ n: curImp, x: 90 + step * i + step / 2,
+                       y: y + (Math.random() - 0.5) * 2,
+                       size: size, rot: (i % 2) ? Math.PI : 0,
+                       color: curColor, alpha: 0.8, depth: 0.6 });
       }
       reRender();
     }
@@ -615,12 +650,14 @@
       if (!inClay(p)) return;
       if (frieze) { friezeBand(p); return; }
       pressDepth = 0.5;
-      oneStamp(p, pressDepth);
-      // hold = deeper press (capped)
+      pressRot = (Math.random() - 0.5) * 0.55;
+      oneStamp(p, pressDepth, pressRot);
+      // hold = deeper press: no size change, the stamp rotates very slightly
       var p0 = p;
       pressTimer = setInterval(function () {
         pressDepth = Math.min(1, pressDepth + 0.12);
-        oneStamp(p0, pressDepth);
+        pressRot += 0.5 * Math.PI / 180;
+        oneStamp(p0, pressDepth, pressRot);
       }, 260);
     });
     ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
@@ -678,14 +715,57 @@
     var sidebar = document.createElement("nav");
     sidebar.className = "section-sidebar";
     sidebar.setAttribute("aria-label", "Section navigation");
+    /* proper nouns that keep their capitals in sentence case */
+    var PROPER = [
+      ["el museo canario", "El Museo Canario"],
+      ["museo canario", "Museo Canario"],
+      ["comisaría de excavaciones arqueológicas", "Comisaría de Excavaciones Arqueológicas"],
+      ["gran canaria", "Gran Canaria"],
+      ["cueva pintada", "Cueva Pintada"],
+      ["xxi", "XXI"], ["xx", "XX"], ["xix", "XIX"]
+    ];
+    /* sentence case: lowercase only the ALL-CAPS words, leave mixed-case words
+       (e.g. "Notas al capítulo 1", the "Tabla 2.x" list) untouched */
+    function sentenceCase(text) {
+      var lowered = false;
+      var t = text.replace(/[^\s]+/g, function (w) {
+        if (!/[A-ZÁÉÍÓÚÜÑa-záéíóúñü]/.test(w)) return w;   // numbers, punctuation
+        if (w !== w.toUpperCase()) return w;                // already mixed case
+        lowered = true;
+        return w.toLowerCase();
+      });
+      PROPER.forEach(function (p) {
+        t = t.replace(new RegExp("\\b" + p[0] + "\\b", "gi"), p[1]);
+      });
+      /* only re-capitalize when we actually lowercased something (index 0) */
+      if (lowered) {
+        var m = t.match(/[a-záéíóúñü]/);
+        if (m) t = t.slice(0, m.index) + m[0].toUpperCase() + t.slice(m.index + 1);
+      }
+      return t;
+    }
     heads.forEach(function (h) {
       var a = document.createElement("a");
       a.href = h.link.getAttribute("href");
       a.innerHTML = h.link.innerHTML;   // keeps the l-es / l-en spans
+      var walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT);
+      var nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function (n) { n.textContent = sentenceCase(n.textContent); });
       h.sideLink = a;
       sidebar.appendChild(a);
     });
     document.body.appendChild(sidebar);
+    /* the sidebar is vertically centred (CSS top:50% + translateY(-50%)).
+       main.js only guards the height: keep it clear of the sticky header
+       (which can wrap on medium screens) and the viewport bottom. */
+    function positionSidebar() {
+      var head = document.querySelector(".site-header");
+      var top = (head ? head.offsetHeight : 56) + 10;
+      sidebar.style.maxHeight = "calc(100vh - " + (top + 32) + "px)";
+    }
+    positionSidebar();
+    window.addEventListener("resize", positionSidebar);
 
     /* ghost stamp in each section bar (like the homepage cards) —
        deterministic per section id, injected in both languages */
