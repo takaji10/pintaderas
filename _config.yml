@@ -14,3 +14,5 @@ exclude:
   - vendor
   - build_notes
   - tools
+  - research_notes
+  - reports
